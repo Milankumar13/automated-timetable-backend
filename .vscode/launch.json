@@ -1,0 +1,25 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Django",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/manage.py",
+            "args": [
+                "runserver",
+                "8000"
+            ],
+            "django": true,
+            "console": "integratedTerminal",
+            "env": {
+                "ASPNETCORE_ENVIRONMENT": "Development",
+                "DJANGO_SETTINGS_MODULE": "app.settings",
+                "KEYCLOAK_DEFAULT_ACCESS": "ALLOW",
+                "VERIFY": "True",
+                "KEYCLOAK_METHOD_VALIDATE_TOKEN": "INTROSPECT",
+                "PYTHONPATH": "${workspaceFolder}/app/:${env:PYTHONPATH}"
+            },
+        }
+    ]
+}

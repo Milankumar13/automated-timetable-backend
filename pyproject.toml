@@ -1,0 +1,11 @@
+[tool.black]
+line-length = 95
+target-version = ["py311"]
+skip-string-normalization = true
+extend-exclude = "migrations"
+
+[tool.isort]
+profile = "black"
+line_length = 95
+known_first_party = ["config","accounts","catalog","people","constraintsapp","scheduling","auditlog","mediaapp"]
+skip = ["migrations"]

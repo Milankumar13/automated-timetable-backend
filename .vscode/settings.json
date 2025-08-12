@@ -1,0 +1,40 @@
+{
+  "python.defaultInterpreterPath": ".env/bin/python",
+  // Formatting
+  "editor.formatOnSave": true,
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter"
+  },
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "explicit"
+  },
+  // Testing
+  "python.testing.pytestArgs": [
+    "app",
+    "--disable-pytest-warnings"
+  ],
+  "python.testing.pytestEnabled": true,
+  "python.testing.nosetestsEnabled": false,
+  "python.testing.unittestEnabled": true,
+  "python.testing.unittestArgs": [
+    "-v",
+    "-s",
+    "-p",
+    "test_*.py"
+  ],
+  // Linting
+  "python.linting.enabled": true,
+  "python.linting.pylintEnabled": true,
+  "python.linting.pylintArgs": [
+    "--load-plugins=pylint_django",
+    "--max-line-length",
+    "95"
+  ],
+  "python.linting.flake8Enabled": true,
+  "python.linting.flake8Args": [
+    "--exclude=./core/migrations*/**,./.eggs/,./app/manage.py",
+    "--max-line-length=95",
+    "--ignore=W503,E402"
+  ],
+  "python.linting.banditEnabled": true
+}
