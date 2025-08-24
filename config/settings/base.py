@@ -32,14 +32,19 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "accounts",
-    "catalog",
-    "people",
-    "constraintsapp",
-    "scheduling",
-    "auditlog",
     "mediaapp",
     "seeds",
+    "common",
+    "catalog.apps.CatalogConfig",
+    "people.apps.PeopleConfig",
+    "scheduling.apps.SchedulingConfig",
+    "constraintsapp.apps.ConstraintsappConfig",
+    "auditlog.apps.AuditlogConfig",
+    "django.contrib.postgres",
+    "adminui.apps.AdminUiConfig",
 ]
+
+SITE_ID = 1
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -63,6 +68,10 @@ DATABASES = {
         "PASSWORD": env("DB_PASSWORD"),
         "HOST": env("DB_HOST"),
         "PORT": env("DB_PORT"),
+        "CONN_MAX_AGE": 60,
+        "OPTIONS": {
+            "options": "-c search_path=timetable,public"
+        },
     }
 }
 

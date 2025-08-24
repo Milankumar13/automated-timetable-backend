@@ -1,47 +1,17 @@
-import uuid
-
 from django.db import models
+from django.core.validators import MinValueValidator
+from common.models import BaseModel
 
-from catalog.models import CourseOffering, Department, Section, Tenant
-
-
-class Instructor(models.Model):
-    prof_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
-    department = models.ForeignKey(
-        Department, on_delete=models.SET_NULL, null=True, blank=True
-    )
+class Professor(BaseModel):
+    """Professors (admin-managed)."""
+    department = models.ForeignKey('catalog.Department', on_delete=models.RESTRICT, related_name='professors')
+    name = models.CharField(max_length=255)
     email = models.EmailField(unique=True, null=True, blank=True)
-    display_name = models.CharField(max_length=200)
+    employee_no = models.CharField(max_length=64, unique=True, null=True, blank=True)
+    is_active = models.BooleanField(default=True)
 
-    def __str__(self):
-        return self.display_name
+    # Optional policy knobs (useful for constraints)
+    max_hours_per_week = models.PositiveIntegerField(null=True, blank=True, validators=[MinValueValidator(1)])
+    max_classes_per_day = models.PositiveIntegerField(null=True, blank=True, validators=[MinValueValidator(1)])
 
-
-class Student(models.Model):
-    student_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
-    department = models.ForeignKey(
-        Department, on_delete=models.SET_NULL, null=True, blank=True
-    )
-    email = models.EmailField(unique=True, null=True, blank=True)
-    display_name = models.CharField(max_length=200)
-    cohort = models.CharField(max_length=32, blank=True, null=True)
-
-    def __str__(self):
-        return self.display_name
-
-
-class Enrollment(models.Model):
-    enrollment_id = models.UUIDField(
-        primary_key=True, default=uuid.uuid4, editable=False
-    )
-    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
-    student = models.ForeignKey(Student, on_delete=models.CASCADE)
-    offering = models.ForeignKey(CourseOffering, on_delete=models.CASCADE)
-
-    class Meta:
-        unique_together = (("tenant", "student", "offering"),)
-
-    def __str__(self):
-        return f"{self.student} → {self.offering}"
+    def __str__(self): return self.name

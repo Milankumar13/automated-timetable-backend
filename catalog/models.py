@@ -1,131 +1,75 @@
-import uuid
-
-from django.core.validators import MinValueValidator
 from django.db import models
+from django.core.validators import MinValueValidator
+from common.models import BaseModel
 
-
-class Tenant(models.Model):
-    tenant_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=200, unique=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return self.name
-
-
-class Term(models.Model):
-    term_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
-    code = models.CharField(max_length=32)  # '2025-FALL'
-    starts_on = models.DateField()
-    ends_on = models.DateField()
-
-    class Meta:
-        unique_together = (("tenant", "code"),)
-
-    def __str__(self):
-        return self.code
-
-
-class Department(models.Model):
-    department_id = models.UUIDField(
-        primary_key=True, default=uuid.uuid4, editable=False
-    )
-    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
-    code = models.CharField(max_length=16)
-    name = models.CharField(max_length=200)
-
-    class Meta:
-        unique_together = (("tenant", "code"),)
-
-    def __str__(self):
-        return f"{self.code} — {self.name}"
-
-
-class Room(models.Model):
-    room_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
-    department = models.ForeignKey(
-        Department, on_delete=models.SET_NULL, null=True, blank=True
-    )
-    code = models.CharField(max_length=32)
-    capacity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
-    features = models.JSONField(default=dict, blank=True)
+class Department(BaseModel):
+    """Academic departments (e.g., CSE)."""
+    code = models.CharField(max_length=32, unique=True)   # short code
+    name = models.CharField(max_length=255)
     is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(null=True, blank=True)
+    def __str__(self): return f"{self.code} — {self.name}"
 
+class Building(BaseModel):
+    """Campus buildings."""
+    code = models.CharField(max_length=32, unique=True)   # e.g., ENG
+    name = models.CharField(max_length=255)
+    address = models.TextField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    def __str__(self): return f"{self.code} — {self.name}"
+
+class Room(BaseModel):
+    """Rooms with capacity."""
+    building = models.ForeignKey(Building, on_delete=models.RESTRICT, related_name="rooms")
+    code = models.CharField(max_length=64)                # e.g., 101
+    name = models.CharField(max_length=255, null=True, blank=True)
+    capacity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
+    is_active = models.BooleanField(default=True)
     class Meta:
-        unique_together = (("tenant", "code"),)
+        unique_together = [("building", "code")]
+    def __str__(self): return f"{self.building.code}-{self.code}"
 
-    def __str__(self):
-        return f"{self.code} (cap {self.capacity})"
+class Feature(BaseModel):
+    """Room feature catalog (equipment/traits)."""
+    code = models.CharField(max_length=64, unique=True)   # e.g., PROJECTOR, LAB
+    name = models.CharField(max_length=255)
+    def __str__(self): return self.code
 
-
-class TimeSlot(models.Model):
-    slot_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
-    day = models.PositiveSmallIntegerField()  # 1..7
-    start_time = models.TimeField()
-    end_time = models.TimeField()
-    is_official = models.BooleanField(default=False)
-    label = models.TextField(blank=True, null=True)
-
+class RoomFeature(BaseModel):
+    """Room has features (with quantity)."""
+    room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name="room_features")
+    feature = models.ForeignKey(Feature, on_delete=models.RESTRICT, related_name="feature_rooms")
+    quantity = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
     class Meta:
-        constraints = [
-            models.CheckConstraint(
-                check=models.Q(start_time__lt=models.F("end_time")),
-                name="timeslot_range_ok",
-            )
-        ]
-        unique_together = (("tenant", "day", "start_time", "end_time"),)
+        unique_together = [("room", "feature")]
+    def __str__(self): return f"{self.room} → {self.feature.code} x{self.quantity}"
 
-    def __str__(self):
-        return self.label or f"D{self.day} {self.start_time}-{self.end_time}"
-
-
-class Course(models.Model):
-    course_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
-    department = models.ForeignKey(Department, on_delete=models.RESTRICT)
-    code = models.CharField(max_length=32)
-    title = models.CharField(max_length=200)
-    default_minutes = models.PositiveSmallIntegerField(
-        default=60, validators=[MinValueValidator(1)]
-    )
-
+class Course(BaseModel):
+    """Course under a department (e.g., CSE101)."""
+    department = models.ForeignKey(Department, on_delete=models.RESTRICT, related_name="courses")
+    code = models.CharField(max_length=32)                # e.g., CSE101
+    name = models.CharField(max_length=255)
+    credits = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True)
+    is_active = models.BooleanField(default=True)
     class Meta:
-        unique_together = (("tenant", "code"),)
+        unique_together = [("department", "code")]
+    def __str__(self): return f"{self.department.code}-{self.code}"
 
-    def __str__(self):
-        return f"{self.code} — {self.title}"
-
-
-class CourseOffering(models.Model):
-    offering_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
-    course = models.ForeignKey(Course, on_delete=models.RESTRICT)
-    term = models.ForeignKey(Term, on_delete=models.RESTRICT)
-    expected_enrollment = models.PositiveIntegerField(null=True, blank=True)
-
+class Subject(BaseModel):
+    """Atomic teachable unit under a course."""
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="subjects")
+    code = models.CharField(max_length=64)                # e.g., CSE101-ALG
+    name = models.CharField(max_length=255)
+    hours_per_week = models.PositiveIntegerField(null=True, blank=True, validators=[MinValueValidator(1)])
+    expected_size = models.PositiveIntegerField(null=True, blank=True)  # for capacity planning
     class Meta:
-        unique_together = (("tenant", "course", "term"),)
+        unique_together = [("course", "code")]
+    def __str__(self): return f"{self.course}-{self.code}"
 
-    def __str__(self):
-        return f"{self.course.code} @ {self.term.code}"
-
-
-class Section(models.Model):
-    section_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
-    offering = models.ForeignKey(CourseOffering, on_delete=models.CASCADE)
-    section_code = models.CharField(max_length=16)  # 'A', 'B1'
-    meetings_per_week = models.PositiveSmallIntegerField(default=1)
-    minutes_per_meeting = models.PositiveSmallIntegerField(default=60)
-
+class SubjectNeed(BaseModel):
+    """What the subject requires in the room (features with quantities)."""
+    subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name="needs")
+    feature = models.ForeignKey(Feature, on_delete=models.RESTRICT, related_name="needed_by_subjects")
+    quantity = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
     class Meta:
-        unique_together = (("tenant", "offering", "section_code"),)
-
-    def __str__(self):
-        return f"{self.offering.course.code}-{self.section_code}"
+        unique_together = [("subject", "feature")]
+    def __str__(self): return f"{self.subject} needs {self.feature.code} x{self.quantity}"

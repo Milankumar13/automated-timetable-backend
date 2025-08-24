@@ -1,104 +1,29 @@
-import uuid
-
 from django.db import models
+from common.models import BaseModel
 
-from catalog.models import Course, Room, Tenant, TimeSlot
-from people.models import Instructor, Student
+class RuleType(BaseModel):
+    """
+    Lookup for admin rule types — seed once via admin or data migration.
+    Examples: maxclassesperday, room_closed, term_limit, custom
+    """
+    code = models.CharField(max_length=64, unique=True)  # machine name
+    name = models.CharField(max_length=128)              # human label
+    description = models.TextField(null=True, blank=True)
+    def __str__(self): return self.code
 
-
-class AdminRule(models.Model):
-    RULE_CHOICES = [
-        ("maxclassesperday", "maxclassesperday"),
-        ("room_closed", "room_closed"),
-        ("term_limit", "term_limit"),
-        ("custom", "custom"),
-    ]
-    admin_rule_id = models.UUIDField(
-        primary_key=True, default=uuid.uuid4, editable=False
-    )
-    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
-    room = models.ForeignKey(Room, on_delete=models.CASCADE, null=True, blank=True)
-    slot = models.ForeignKey(TimeSlot, on_delete=models.CASCADE, null=True, blank=True)
-    rule_type = models.CharField(max_length=32, choices=RULE_CHOICES)
-    parameter = models.JSONField(default=dict)
-
-    # NEW: global flag
-    is_global = models.BooleanField(default=False)
-
-    class Meta:
-        constraints = [
-            models.CheckConstraint(
-                # allow if global OR room OR slot is set
-                check=(
-                    models.Q(is_global=True)
-                    | models.Q(room__isnull=False)
-                    | models.Q(slot__isnull=False)
-                ),
-                name="adminrule_has_scope",
-            )
-        ]
-
-    def __str__(self):
-        scope = (
-            "global"
-            if getattr(self, "is_global", False)
-            else ("room" if self.room_id else "slot" if self.slot_id else "n/a")
-        )
-        return f"{self.rule_type} ({scope})"
-
-
-class BlockedSlot(models.Model):
-    blocked_slot_id = models.UUIDField(
-        primary_key=True, default=uuid.uuid4, editable=False
-    )
-    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
-    slot = models.ForeignKey(TimeSlot, on_delete=models.CASCADE)
-    room = models.ForeignKey(Room, on_delete=models.CASCADE, null=True, blank=True)
-    reason = models.TextField()
+class AdminRule(BaseModel):
+    """
+    Concrete rule value for a semester.
+    You can store numbers, text, or JSON — pick what fits each rule type.
+    """
+    semester = models.ForeignKey('scheduling.Semester', on_delete=models.CASCADE, related_name='admin_rules')
+    rule_type = models.ForeignKey(RuleType, on_delete=models.PROTECT, related_name='rules')
+    value_int = models.IntegerField(null=True, blank=True)
+    value_text = models.TextField(null=True, blank=True)
+    value_json = models.JSONField(default=dict, blank=True)
+    note = models.TextField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
 
     class Meta:
-        unique_together = (("tenant", "slot", "room"),)
-
-    def __str__(self):
-        room = self.room.code if self.room_id else "ANY-ROOM"
-        return f"Blocked {room} @ {self.slot}"
-
-
-class ProfessorAvailability(models.Model):
-    availability_id = models.UUIDField(
-        primary_key=True, default=uuid.uuid4, editable=False
-    )
-    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
-    prof = models.ForeignKey(Instructor, on_delete=models.CASCADE)
-    slot = models.ForeignKey(TimeSlot, on_delete=models.CASCADE)
-    available = models.BooleanField()
-
-    class Meta:
-        unique_together = (("tenant", "prof", "slot"),)
-
-    def __str__(self):
-        return f"{self.prof} @ {self.slot}: {'yes' if self.available else 'no'}"
-
-
-class StudentPreference(models.Model):
-    preference_id = models.UUIDField(
-        primary_key=True, default=uuid.uuid4, editable=False
-    )
-    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
-    student = models.ForeignKey(Student, on_delete=models.CASCADE)
-    course = models.ForeignKey(Course, on_delete=models.CASCADE, null=True, blank=True)
-    slot = models.ForeignKey(TimeSlot, on_delete=models.CASCADE, null=True, blank=True)
-    preference_score = models.SmallIntegerField()  # e.g. -10..+10
-
-    class Meta:
-        constraints = [
-            models.CheckConstraint(
-                check=(models.Q(course__isnull=False) & models.Q(slot__isnull=True))
-                | (models.Q(course__isnull=True) & models.Q(slot__isnull=False)),
-                name="pref_course_xor_slot",
-            )
-        ]
-
-    def __str__(self):
-        target = self.course.code if self.course_id else str(self.slot)
-        return f"{self.student} prefers {target} [{self.preference_score}]"
+        unique_together = [('semester', 'rule_type')]
+    def __str__(self): return f"{self.semester.code}:{self.rule_type.code}"

@@ -1,87 +1,57 @@
 from django.contrib import admin
-
 from .models import (
-    Course,
-    CourseOffering,
-    Department,
-    Room,
-    Section,
-    Tenant,
-    Term,
-    TimeSlot,
+    Department, Building, Room, Feature, RoomFeature,
+    Course, Subject, SubjectNeed
 )
-
-
-@admin.register(Tenant)
-class TenantAdmin(admin.ModelAdmin):
-    list_display = ("name", "created_at")
-    search_fields = ("name",)
-
-
-@admin.register(Term)
-class TermAdmin(admin.ModelAdmin):
-    list_display = ("code", "starts_on", "ends_on", "tenant")
-    list_filter = ("tenant",)
-    search_fields = ("code",)
-    ordering = ("-starts_on",)
-
 
 @admin.register(Department)
 class DepartmentAdmin(admin.ModelAdmin):
-    list_display = ("code", "name", "tenant")
-    list_filter = ("tenant",)
+    list_display = ("code", "name", "is_active", "created_at", "updated_at")
     search_fields = ("code", "name")
+    list_filter = ("is_active",)
 
+@admin.register(Building)
+class BuildingAdmin(admin.ModelAdmin):
+    list_display = ("code", "name", "is_active", "created_at", "updated_at")
+    search_fields = ("code", "name")
+    list_filter = ("is_active",)
 
 @admin.register(Room)
 class RoomAdmin(admin.ModelAdmin):
-    list_display = ("code", "capacity", "department", "is_active", "tenant")
-    list_filter = ("tenant", "department", "is_active")
-    search_fields = ("code",)
-    autocomplete_fields = ("department",)
-    ordering = ("code",)
+    list_display = ("building", "code", "name", "capacity", "is_active", "created_at")
+    search_fields = ("code", "name", "building__code", "building__name")
+    list_filter = ("is_active", "building")
+    autocomplete_fields = ("building",)  # valid FK on Room
 
+@admin.register(Feature)
+class FeatureAdmin(admin.ModelAdmin):
+    list_display = ("code", "name", "created_at", "updated_at")
+    search_fields = ("code", "name")
 
-@admin.register(TimeSlot)
-class TimeSlotAdmin(admin.ModelAdmin):
-    list_display = ("day", "start_time", "end_time", "is_official", "tenant", "label")
-    list_filter = ("tenant", "day", "is_official")
-    ordering = ("day", "start_time")
-    search_fields = ("label", "start_time", "end_time")
-
-
-class SectionInline(admin.TabularInline):
-    model = Section
-    extra = 0
-    show_change_link = True
-
+@admin.register(RoomFeature)
+class RoomFeatureAdmin(admin.ModelAdmin):
+    list_display = ("room", "feature", "quantity", "created_at")
+    list_filter = ("feature", "room__building")
+    search_fields = ("room__code", "room__building__code", "feature__code")
+    autocomplete_fields = ("room", "feature")
 
 @admin.register(Course)
 class CourseAdmin(admin.ModelAdmin):
-    list_display = ("code", "title", "department", "tenant")
-    list_filter = ("tenant", "department")
-    search_fields = ("code", "title")
+    list_display = ("department", "code", "name", "credits", "is_active", "created_at")
+    search_fields = ("code", "name", "department__code", "department__name")
+    list_filter = ("is_active", "department")
     autocomplete_fields = ("department",)
 
+@admin.register(Subject)
+class SubjectAdmin(admin.ModelAdmin):
+    list_display = ("course", "code", "name", "hours_per_week", "expected_size", "created_at")
+    search_fields = ("code", "name", "course__code", "course__name")
+    list_filter = ("course__department",)
+    autocomplete_fields = ("course",)
 
-@admin.register(CourseOffering)
-class CourseOfferingAdmin(admin.ModelAdmin):
-    list_display = ("course", "term", "expected_enrollment", "tenant")
-    list_filter = ("tenant", "term")
-    search_fields = ("course__code", "course__title")
-    autocomplete_fields = ("course", "term")
-    inlines = [SectionInline]
-
-
-@admin.register(Section)
-class SectionAdmin(admin.ModelAdmin):
-    list_display = (
-        "offering",
-        "section_code",
-        "meetings_per_week",
-        "minutes_per_meeting",
-        "tenant",
-    )
-    list_filter = ("tenant",)
-    search_fields = ("offering__course__code", "section_code")
-    autocomplete_fields = ("offering",)
+# @admin.register(SubjectNeed)
+# class SubjectNeedAdmin(admin.ModelAdmin):
+#     list_display = ("subject", "feature", "quantity", "created_at")
+#     list_filter = ("feature", "subject__course__department")
+#     search_fields = ("subject__code", "subject__name", "feature__code")
+#     autocomplete_fields = ("subject", "feature")
