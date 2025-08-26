@@ -48,7 +48,7 @@ class Course(BaseModel):
     department = models.ForeignKey(Department, on_delete=models.RESTRICT, related_name="courses")
     code = models.CharField(max_length=32)                # e.g., CSE101
     name = models.CharField(max_length=255)
-    credits = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True)
+    credits = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     is_active = models.BooleanField(default=True)
     class Meta:
         unique_together = [("department", "code")]

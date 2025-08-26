@@ -1,2 +1,32 @@
-.env
+# Python
+*.pyc
+*.pyo
+__pycache__/
+*.DS_Store
+
+# Virtual environment
+venv/
 env/
+ENV/
+.venv/
+.env
+*.env
+
+# Django specific
+db.sqlite3
+/media/
+staticfiles/
+
+# Logs
+*.log
+
+# Coverage / testing
+htmlcov/
+.coverage
+coverage.xml
+*.cover
+*.py,cover
+
+# IDE / editor
+.idea/
+*.swp
